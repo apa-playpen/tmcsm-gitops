@@ -2,8 +2,9 @@ apiVersion: packaging.carvel.dev/v1alpha1
 kind: PackageRepository
 metadata:
   name: tanzu-standard
-  namespace: gitops-system
+  namespace: tmc-gitops
 spec:
   fetch:
     imgpkgBundle:
-      image: projects-stg.registry.vmware.com/tkg/packages/standard/repo:v2.2.1-zshippable
+      image: lab-harbor.services.tanzu.rocks/tmc/498533941640.dkr.ecr.us-west-2.amazonaws.com/packages/standard/repo:v2023.7.13_update.2
+      

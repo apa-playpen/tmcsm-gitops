@@ -9,7 +9,7 @@ resources:
 
 secretGenerator:
 - name: fluent-bit-packages-values
-  namespace: gitops-system
+  namespace: gtmc-gitops
   files:
   - values.yml
   type: Opaque

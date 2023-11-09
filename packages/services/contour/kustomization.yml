@@ -8,7 +8,7 @@ resources:
 
 secretGenerator:
 - name: contour-packages-values
-  namespace: gitops-system
+  namespace: tmc-gitops
   files:
   - values.yml
   type: Opaque
