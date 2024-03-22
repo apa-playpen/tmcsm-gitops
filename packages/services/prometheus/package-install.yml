@@ -9,7 +9,7 @@ spec:
   packageRef:
     refName: prometheus.tanzu.vmware.com
     versionSelection:
-      constraints: 2.43.0+vmware.2-tkg.1
+      constraints: 2.45.0+vmware.1-tkg.2
   values:
   - secretRef:
       name: prometheus-packages-values

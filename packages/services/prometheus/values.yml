@@ -1,45 +1,65 @@
----
-
-namespace: tanzu-system-monitoring
-
-
-prometheus:
+alertmanager:
+  config:
+    alertmanager_yml: |
+      global:
+      receivers:
+      - name: default-receiver
+      templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+      route:
+        group_interval: 5m
+        group_wait: 10s
+        receiver: default-receiver
+        repeat_interval: 3h
   deployment:
     replicas: 1
-    updateStrategy: Recreate
     rollingUpdate:
-      maxUnavailable: null
-      maxSurge: null
-    containers:
-      args:
-        - --storage.tsdb.retention.time=42d
-        - --config.file=/etc/config/prometheus.yml
-        - --storage.tsdb.path=/data
-        - --web.console.libraries=/etc/prometheus/console_libraries2
-        - --web.console.templates=/etc/prometheus/consoles
-        - --web.enable-lifecycle
-      resources: {}
-    podAnnotations: {}
-    podLabels: {}
-    configmapReload:
-      containers:
-        args:
-          - --volume-dir=/etc/config
-          - --webhook-url=http://127.0.0.1:9090/-/reload
-        resources: {}
-  service:
-    type: "LoadBalancer"
-    port: 80
-    targetPort: 9090
-    labels: {}
-    annotations: {}
+      maxSurge: 25%
+      maxUnavailable: 25%
+    updateStrategy: Recreate
   pvc:
-    annotations: {}
-    storageClassName: null
     accessMode: ReadWriteOnce
-    storage: "100Gi"
-  #! The prometheus configuration
+    storage: 2Gi
+    storageClassName: general-usage
+  service:
+    port: 80
+    targetPort: 9093
+    type: ClusterIP
+ingress:
+  alertmanager_prefix: /alertmanager/
+  alertmanagerServicePort: 80
+  enabled: true
+  prometheus_prefix: /
+  prometheusServicePort: 80
+  tlsCertificate:
+    ca.crt: 
+    tls.crt: 
+    tls.key: 
+  virtual_host_fqdn: prometheus.home.local
+kube_state_metrics:
+  deployment:
+    replicas: 1
+  service:
+    port: 80
+    targetPort: 8080
+    telemetryPort: 81
+    telemetryTargetPort: 8081
+    type: ClusterIP
+namespace: tanzu-system-monitoring
+node_exporter:
+  daemonset:
+    hostNetwork: false
+    updatestrategy: RollingUpdate
+  service:
+    port: 9100
+    targetPort: 9100
+    type: ClusterIP
+prometheus:
   config:
+    alerting_rules_yml: |
+      {}
+    alerts_yml: |
+      {}
     prometheus_yml: |
       global:
         evaluation_interval: 1m
@@ -57,11 +77,11 @@ prometheus:
         - targets: ['localhost:9090']
       - job_name: 'kube-state-metrics'
         static_configs:
-        - targets: ['prometheus-kube-state-metrics.tanzu-system-monitoring.svc.cluster.local:8080']
+        - targets: ['prometheus-kube-state-metrics.prometheus.svc.cluster.local:8080']
 
       - job_name: 'node-exporter'
         static_configs:
-        - targets: ['prometheus-node-exporter.tanzu-system-monitoring.svc.cluster.local:9100']
+        - targets: ['prometheus-node-exporter.prometheus.svc.cluster.local:9100']
 
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
@@ -125,7 +145,7 @@ prometheus:
         - scheme: http
           static_configs:
           - targets:
-            - alertmanager.tanzu-system-monitoring.svc:80
+            - alertmanager.prometheus.svc:80
         - kubernetes_sd_configs:
             - role: pod
           relabel_configs:
@@ -144,8 +164,6 @@ prometheus:
           - source_labels: [__meta_kubernetes_pod_container_port_number]
             regex:
             action: drop
-    alerting_rules_yml: |
-      {}
     recording_rules_yml: |
       groups:
         - name: kube-apiserver.rules
@@ -169,7 +187,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[1d]))
               )
               /
@@ -180,7 +198,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[1h]))
                   -
                   (
@@ -196,7 +214,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[1h]))
               )
               /
@@ -207,7 +225,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[2h]))
                   -
                   (
@@ -223,7 +241,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[2h]))
               )
               /
@@ -234,7 +252,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[30m]))
                   -
                   (
@@ -250,7 +268,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[30m]))
               )
               /
@@ -261,7 +279,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[3d]))
                   -
                   (
@@ -277,7 +295,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[3d]))
               )
               /
@@ -288,7 +306,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[5m]))
                   -
                   (
@@ -304,7 +322,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[5m]))
               )
               /
@@ -315,7 +333,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[6h]))
                   -
                   (
@@ -331,7 +349,7 @@ prometheus:
                   )
                 )
                 +
-                # errors
+                ## errors
                 sum(rate(apiserver_request_total{job="kubernetes-apiservers",verb=~"LIST|GET",code=~"5.."}[6h]))
               )
               /
@@ -342,7 +360,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[1d]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[1d]))
@@ -358,7 +376,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[1h]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[1h]))
@@ -374,7 +392,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[2h]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[2h]))
@@ -390,7 +408,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[30m]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[30m]))
@@ -406,7 +424,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[3d]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[3d]))
@@ -422,7 +440,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[5m]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[5m]))
@@ -438,7 +456,7 @@ prometheus:
           - expr: |2
               (
                 (
-                  # too slow
+                  ## too slow
                   sum(rate(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE"}[6h]))
                   -
                   sum(rate(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"POST|PUT|PATCH|DELETE",le="1"}[6h]))
@@ -499,13 +517,13 @@ prometheus:
           - expr: |2
               1 - (
                 (
-                  # write too slow
+                  ## write too slow
                   sum(increase(apiserver_request_duration_seconds_count{verb=~"POST|PUT|PATCH|DELETE"}[30d]))
                   -
                   sum(increase(apiserver_request_duration_seconds_bucket{verb=~"POST|PUT|PATCH|DELETE",le="1"}[30d]))
                 ) +
                 (
-                  # read too slow
+                  ## read too slow
                   sum(increase(apiserver_request_duration_seconds_count{verb=~"LIST|GET"}[30d]))
                   -
                   (
@@ -520,7 +538,7 @@ prometheus:
                     sum(increase(apiserver_request_duration_seconds_bucket{verb=~"LIST|GET",scope="cluster",le="5"}[30d]))
                   )
                 ) +
-                # errors
+                ## errors
                 sum(code:apiserver_request_total:increase30d{code=~"5.."} or vector(0))
               )
               /
@@ -533,7 +551,7 @@ prometheus:
                 sum(increase(apiserver_request_duration_seconds_count{job="kubernetes-apiservers",verb=~"LIST|GET"}[30d]))
                 -
                 (
-                  # too slow
+                  ## too slow
                   (
                     sum(increase(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"LIST|GET",scope=~"resource|",le="0.1"}[30d]))
                     or
@@ -545,7 +563,7 @@ prometheus:
                   sum(increase(apiserver_request_duration_seconds_bucket{job="kubernetes-apiservers",verb=~"LIST|GET",scope="cluster",le="5"}[30d]))
                 )
                 +
-                # errors
+                ## errors
                 sum(code:apiserver_request_total:increase30d{verb="read",code=~"5.."} or vector(0))
               )
               /
@@ -556,13 +574,13 @@ prometheus:
           - expr: |2
               1 - (
                 (
-                  # too slow
+                  ## too slow
                   sum(increase(apiserver_request_duration_seconds_count{verb=~"POST|PUT|PATCH|DELETE"}[30d]))
                   -
                   sum(increase(apiserver_request_duration_seconds_bucket{verb=~"POST|PUT|PATCH|DELETE",le="1"}[30d]))
                 )
                 +
-                # errors
+                ## errors
                 sum(code:apiserver_request_total:increase30d{verb="write",code=~"5.."} or vector(0))
               )
               /
@@ -652,105 +670,38 @@ prometheus:
             labels:
               verb: write
             record: code:apiserver_request_total:increase30d
-    alerts_yml: |
-      {}
     rules_yml: |
       {}
-
-
-ingress:
-  enabled: false
-  virtual_host_fqdn: "$(.config.data.cluster_name)-prometheus.tanzu.playpen"
-  prometheus_prefix: "/"
-  alertmanager_prefix: "/alertmanager/"
-  prometheusServicePort: 80
-  alertmanagerServicePort: 80
-  tlsCertificate:
-    tls.crt:
-    tls.key:
-    ca.crt:
-
-alertmanager:
   deployment:
+    configmapReload:
+      containers:
+        args:
+          - --volume-dir=/etc/config
+          - --webhook-url=http://127.0.0.1:9090/-/reload
+    containers:
+      args:
+        - --storage.tsdb.retention.time=42d
+        - --config.file=/etc/config/prometheus.yml
+        - --storage.tsdb.path=/data
+        - --web.console.libraries=/etc/prometheus/console_libraries
+        - --web.console.templates=/etc/prometheus/consoles
+        - --web.enable-lifecycle
     replicas: 1
-    updateStrategy: Recreate
     rollingUpdate:
-      maxUnavailable: null
-      maxSurge: null
-    containers:
-      resources: {}
-    podAnnotations: {}
-    podLabels: {}
-
-  service:
-    type: "ClusterIP"
-    port: 80
-    targetPort: 9093
-    labels: {}
-    annotations: {}
+      maxSurge: 25%
+      maxUnavailable: 25%
+    updateStrategy: Recreate
   pvc:
-    annotations: {}
-    storageClassName: null
     accessMode: ReadWriteOnce
-    storage: "2Gi"
-
-  config:
-    alertmanager_yml: |
-      global: {}
-      receivers:
-      - name: default-receiver
-      templates:
-      - '/etc/alertmanager/templates/*.tmpl'
-      route:
-        group_interval: 5m
-        group_wait: 10s
-        receiver: default-receiver
-        repeat_interval: 3h
-
-kube_state_metrics:
-  deployment:
-    replicas: 1
-    containers:
-      resources: {}
-    podAnnotations: {}
-    podLabels: {}
+    storage: 150Gi
   service:
-    type: "ClusterIP"
     port: 80
-    targetPort: 8080
-    telemetryPort: 81
-    telemetryTargetPort: 8081
-    labels: {}
-    annotations: {}
-
-node_exporter:
-  daemonset:
-    hostNetwork: false
-    updatestrategy: RollingUpdate
-    containers:
-      resources: {}
-    podAnnotations: {}
-    podLabels: {}
-
-  service:
-    type: "ClusterIP"
-    port: 9100
-    targetPort: 9100
-    labels: {}
-    annotations: {}
-
-
+    targetPort: 9090
+    type: LoadBalancer
 pushgateway:
   deployment:
     replicas: 1
-    containers:
-      resources: {}
-    podAnnotations: {}
-    podLabels: {}
-
   service:
-    type: "ClusterIP"
     port: 9091
     targetPort: 9091
-    labels: {}
-    annotations: {}
+    type: ClusterIP

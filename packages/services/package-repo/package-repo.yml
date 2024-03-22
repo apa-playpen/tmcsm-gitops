@@ -6,5 +6,5 @@ metadata:
 spec:
   fetch:
     imgpkgBundle:
-      image: build-harbor.services.tanzu.rocks/tmc/498533941640.dkr.ecr.us-west-2.amazonaws.com/packages/standard/repo:v2023.7.13_update.2
+      image: projects-stg.registry.vmware.com/tkg/packages/standard/repo:v2024.2.1
       
