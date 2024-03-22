@@ -1,6 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
+namespace: tmc-gitops
 resources:
+- namespace.yml
 - serviceaccount.yml
 

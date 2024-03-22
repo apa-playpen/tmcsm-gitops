@@ -1,9 +1,0 @@
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: general-config
-  namespace: tanzu-continuousdelivery-resources
-data:
-  clustergroup: syd-vcf-hub-workload
